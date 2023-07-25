@@ -1,33 +1,13 @@
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 import seaborn as sns
-# from sklearn.model_selection import StratifiedKFold
-# from sklearn.preprocessing import StandardScaler
-# from sklearn.linear_model import LogisticRegression
-# from sklearn.feature_selection import SequentialFeatureSelector
-from itertools import product
-# from sklearn.metrics import f1_score
+from xml.etree.ElementTree import fromstring
+import matplotlib.pyplot as plt
+from collections import defaultdict
+
 
 figure_colors = sns.color_palette("BrBG").as_hex()
-
-
-def analyse_column(df, col_name: str, fig_title: str, *args, **kwargs) -> None:
-    """Creates countplot figure with title, despined and labeled.
-
-    Parameters
-    ----------
-    df : pd.Dataframe
-        pandas dataframe containing the column col_name
-    col_name : str
-        The feature that will be analysed.
-    fig_title : str
-        The title of the figure.
-    """
-    sns.countplot(x=df[col_name], *args, **kwargs)
-    plt.title(fig_title)
-    sns.despine(bottom=True)
-    add_value_labels(plt.gca())
+figure_colors_qualitative = sns.color_palette("colorblind", 6).as_hex()
 
 
 def add_value_labels(ax, spacing=1, units="") -> None:
@@ -100,7 +80,6 @@ def percent_plot(data: pd.DataFrame, x: str, hue: str, title: str, **kwargs) -> 
         x=df_counts[x],
         y=df_counts[hue_percent],
         hue=df_counts[hue],
-        palette=figure_colors,
         **kwargs,
     )
     plt.title(title)
@@ -121,6 +100,75 @@ def joint_scatterplot_with_title(title, *args, **kwargs):
     joint_grid = sns.jointplot(kind="scatter", alpha=0.3, height=6, *args, **kwargs)
     joint_grid.fig.subplots_adjust(top=0.95)
     plt.suptitle(title)
+
+
+def extract_scorers(row):
+    goal = row["goal"]
+    away_scorers = []
+    home_scorers = []
+    if goal is not np.nan:
+        home_team_id = row["home_team_api_id"]
+        root = fromstring(goal)
+        # find all goals
+        for value in root.findall("./value/[player1]"):
+            # where the goal is not an own goal
+            not_own_goal = value.find("stats/owngoals") is None
+            if not_own_goal:
+                # record the goal scorer and record if it was by the away or home team
+                player = value.find("player1").text
+                team = value.find("team").text
+                if int(team) == home_team_id:
+                    home_scorers.append(player)
+                else:
+                    away_scorers.append(player)
+    return pd.Series(
+        [",".join(home_scorers), ",".join(away_scorers)],
+        index=["home_scorers", "away_scorers"],
+    ).replace("", None)
+
+
+def get_player_goal_counts(dataframe):
+    # Create a defaultdict with a default value of 0
+    player_goal_counts = defaultdict(int)
+    player_teams = dict()
+
+    # Iterate over each row in the DataFrame
+    for _, row in dataframe.iterrows():
+        player_ids_home = row["home_scorers"]
+        player_ids_away = row["away_scorers"]
+        team_home = row["home_team_api_id"]
+        team_away = row["away_team_api_id"]
+
+        # Handle home scorers
+        if player_ids_home is not None:
+            # Split the player IDs string into a list
+            player_ids_list = player_ids_home.split(",")
+
+            # Iterate over each player ID in the list
+            for player_id_str in player_ids_list:
+                player_id = int(player_id_str)
+                player_goal_counts[player_id] += 1
+                if player_teams.get(player_id) is None:
+                    player_teams[player_id] = team_home
+                elif player_teams[player_id] == -1:
+                    continue
+                elif player_teams[player_id] != team_home:
+                    player_teams[player_id] = -1
+
+        # Handle away scorers
+        if player_ids_away is not None:
+            player_ids_list = player_ids_away.split(",")
+            for player_id_str in player_ids_list:
+                player_id = int(player_id_str)
+                player_goal_counts[player_id] += 1
+                if player_teams.get(player_id) is None:
+                    player_teams[player_id] = team_away
+                elif player_teams[player_id] == -1:
+                    continue
+                elif player_teams[player_id] != team_away:
+                    player_teams[player_id] = -1
+
+    return player_goal_counts, player_teams
 
 
 def correlation_bar(df, feature, title, kind="pearson"):
@@ -148,121 +196,145 @@ def correlation_bar(df, feature, title, kind="pearson"):
     heatmap.set_title(title)
 
 
-def validate_model(Fold_validator, model_input, X, Y):
-    """Validate the model using Kfold validation.
-
-    Parameters
-    ----------
-    Fold_validator
-        sklearn KFold object.
-    model_input
-        sklearn classifier object. Tested to work with logistic regression.
-    X : pd.Dataframe
-        The raw input matrix.
-    Y : pd.Dataframe
-        The true classes to be used for classification.
-    Returns
-    -------
-    mean intercept
-    mean coefficients
-    true Y vector
-    predicted Y vector
-    """
-    scaler = StandardScaler()
-    model = model_input
-    Y_predictions = []
-    Y_truths = []
-    intercept = []
-    coefs = []
-    for train_index, test_index in Fold_validator.split(X, Y):
-        X_train = X.iloc[train_index]
-        X_test = X.iloc[test_index]
-        Y_train = Y.iloc[train_index]
-        Y_test = Y.iloc[test_index]
-        scaler.fit(X_train)
-        X_train = scaler.transform(X_train)
-        X_test = scaler.transform(X_test)
-        model = model.fit(X_train, Y_train)
-        Y_predictions.extend(model.predict(X_test))
-        Y_truths.extend(Y_test)
-        coefs.append(model.coef_)
-        intercept.append(model.intercept_)
-    return (
-        np.array(intercept).mean(),
-        np.array(coefs).mean(axis=0),
-        Y_truths,
-        Y_predictions,
+def transform_X(df, scaler):
+    # scale df's numerical features
+    numerical = df.select_dtypes(include=[np.number])
+    numerical_scaled = scaler.transform(numerical)
+    numerical_scaled_df = pd.DataFrame(
+        numerical_scaled, columns=numerical.columns, index=numerical.index
     )
 
+    # 'dummify' df's categorical features
+    categorical = df.select_dtypes(include=[object])
+    all_dummies = pd.DataFrame()
+    for col in categorical.columns:
+        column_dummies = pd.get_dummies(categorical[col], prefix=col, drop_first=True)
+        all_dummies = pd.concat([all_dummies, column_dummies], axis=1)
 
-def tune_log_reg(KFold, X, Y):
-    """Tune logistic regression parameters.
+    df_transformed = pd.concat([numerical_scaled_df, all_dummies], axis=1)
+    return df_transformed
 
-    TODO: add "combs" variable as input
 
-    Parameters
-    ----------
-    Fold_validator
-        sklearn KFold object.
-    X : pd.Dataframe
-        The raw input matrix.
-    Y : pd.Dataframe
-        The true classes to be used for classification.
-    Returns
-    -------
-    best F1 score
-    best parameters
-    """
-    f1_list = []
-    combs = list(
-        product(
-            np.arange(1, 4, 0.1),
-            ["l1", "l2"],
-            [1e-4, 1e-3, 1e-2, 1e-1, 1, 1e1, 1e2, 1e3, 1e4, 1e5],
-        )
+def paint_roc_figure(model, Y_test, X_test, pos_label, pos_position):
+    fpr, tpr, thresholds = roc_curve(
+        Y_test, model.predict_proba(X_test)[:, pos_position], pos_label=pos_label
     )
-    for comb in combs:
-        weight_1, penalty, C = comb
-        model = LogisticRegression(
-            solver="liblinear", class_weight={0: 1, 1: weight_1}, penalty=penalty, C=C
+
+    roc_df = pd.DataFrame({"recall": tpr, "specificity": 1 - fpr})
+    ax = roc_df.plot(
+        x="specificity",
+        y="recall",
+        figsize=(5, 5),
+        legend=False,
+        color=figure_colors_qualitative[0],
+    )
+    ax.set_ylim(0, 1)
+    ax.set_xlim(1, 0)
+    ax.plot((1, 0), (0, 1), color=figure_colors_qualitative[1])
+    ax.set_xlabel("specificity")
+    ax.set_ylabel("recall")
+    plt.title("Model ROC")
+    plt.text(
+        0.2,
+        0.1,
+        (
+            "AUC:"
+            f" {roc_auc_score(Y_test, model.predict_proba(X_test)[:,pos_position]):.2f}"
+        ),
+        fontsize=12,
+    )
+    sns.despine()
+
+
+def paint_prc_figure(model, Y_test, X_test, pos_label, pos_position):
+    precision, recall, thresholds = precision_recall_curve(
+        Y_test, model.predict_proba(X_test)[:, pos_position], pos_label=pos_label
+    )
+
+    prc_df = pd.DataFrame({"recall": recall, "precision": precision})
+    ax = prc_df.plot(
+        y="precision",
+        x="recall",
+        figsize=(5, 5),
+        legend=False,
+        color=figure_colors_qualitative[0],
+    )
+    ax.set_ylim(0, 1)
+    ax.set_xlim(0, 1)
+    ax.set_ylabel("precision")
+    ax.set_xlabel("recall")
+    plt.title("Model PRC")
+    sns.despine()
+
+
+def plot_roc_curve(tpr, fpr, scatter=True, ax=None):
+    """
+    Taken from
+    https://towardsdatascience.com/multiclass-classification-evaluation-with-roc-curves-and-roc-auc-294fd4617e3a
+    Plots the ROC Curve by using the list of coordinates (tpr and fpr).
+
+    Args:
+        tpr: The list of TPRs representing each coordinate.
+        fpr: The list of FPRs representing each coordinate.
+        scatter: When True, the points used on the calculation will be plotted with the line (default = True).
+    """
+    if ax == None:
+        plt.figure(figsize=(5, 5))
+        ax = plt.axes()
+
+    if scatter:
+        sns.scatterplot(x=fpr, y=tpr, ax=ax, color=figure_colors_qualitative[0])
+    sns.lineplot(x=fpr, y=tpr, ax=ax, color=figure_colors_qualitative[0])
+    sns.lineplot(x=[0, 1], y=[0, 1], color=figure_colors_qualitative[1], ax=ax)
+    plt.xlim(-0.05, 1.05)
+    plt.ylim(-0.05, 1.05)
+    plt.xlabel("False Positive Rate")
+    plt.ylabel("True Positive Rate")
+
+
+def plot_multiclass_roc(model, X_test, Y_test):
+    """
+    heavily based on
+    https://towardsdatascience.com/multiclass-classification-evaluation-with-roc-curves-and-roc-auc-294fd4617e3a
+    """
+    # Plots the Probability Distributions and the ROC Curves One vs Rest
+    plt.figure(figsize=(12, 8))
+    bins = [i / 20 for i in range(20)] + [1]
+    classes = model.classes_
+    y_proba = model.predict_proba(X_test)
+    for i, c in enumerate(classes):
+        # Prepares an auxiliar dataframe to help with the plots
+        df_aux = X_test.copy()
+        df_aux["class"] = [1 if y == c else 0 for y in Y_test]
+        df_aux["prob"] = y_proba[:, i]
+        df_aux = df_aux.reset_index(drop=True)
+
+        # Plots the probability distribution for the class and the rest
+        ax = plt.subplot(2, 3, i + 1)
+        sns.histplot(
+            x="prob",
+            data=df_aux,
+            hue="class",
+            color=figure_colors_qualitative,
+            ax=ax,
+            bins=bins,
         )
-        try:
-            _, _, Y_truths, Y_predictions = validate_model(KFold, model, X, Y)
-            if sum(Y_predictions) > 0:
-                f1 = f1_score(Y_truths, Y_predictions)
-                f1_list.append(f1)
-            else:
-                f1_list.append(0)
-        except:
-            f1_list = f1_list.append(0)
-    best_f1 = np.max(f1_list)
-    best_f1_idx = np.argmax(f1_list)
-    best_params = combs[best_f1_idx]
-    return best_f1, best_params
+        ax.set_title(c)
+        ax.legend([f"Class: {c}", "Rest"])
+        ax.set_xlabel(f"P(x = {c})")
 
+        # Calculates the ROC Coordinates and plots the ROC Curves
+        ax_bottom = plt.subplot(2, 3, i + 4)
+        fpr, tpr, thresholds = roc_curve(df_aux["class"], df_aux["prob"], pos_label=1)
+        plot_roc_curve(tpr, fpr, scatter=False, ax=ax_bottom)
+        ax_bottom.set_title("ROC Curve")
 
-def plot_decision_boundary(title, model, X, Y, coefs_to_use):
-    plt.figure()
-    # Retrieve the model parameters.
-    b = model.intercept_[0]
-    w1, w2 = model.coef_.T[coefs_to_use]
-    # Calculate the intercept and gradient of the decision boundary.
-    c = -b / w2
-    m = -w1 / w2
-
-    # Plot the data and the classification with the decision boundary.
-    xmin, xmax = X[:, 0].min(), X[:, 0].max()
-    ymin, ymax = X[:, 1].min(), X[:, 1].max()
-    xd = np.array([xmin, xmax])
-    yd = m * xd + c
-    plt.plot(xd, yd, "k", lw=1, ls="--")
-    plt.fill_between(xd, yd, ymin, color="tab:orange", alpha=0.2)
-    plt.fill_between(xd, yd, ymax, color="tab:blue", alpha=0.2)
-
-    negatives = X[Y == 0].T
-    positives = X[Y == 1].T
-
-    plt.scatter(*positives, s=8, alpha=0.5)
-    plt.scatter(*negatives, s=8, alpha=0.5)
-    plt.xlim(xmin, xmax)
-    plt.ylim(ymin, ymax)
+        # Calculates the ROC AUC
+        roc_auc = roc_auc_score(df_aux["class"], df_aux["prob"])
+        plt.text(
+            0.2,
+            0.1,
+            f"AUC: {roc_auc:.2f}",
+            fontsize=12,
+        )
+    plt.tight_layout()
