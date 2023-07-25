@@ -4,7 +4,13 @@ import seaborn as sns
 from xml.etree.ElementTree import fromstring
 import matplotlib.pyplot as plt
 from collections import defaultdict
-
+from sklearn.metrics import (
+    mean_squared_error,
+    r2_score,
+    roc_curve,
+    roc_auc_score,
+    precision_recall_curve,
+)
 
 figure_colors = sns.color_palette("BrBG").as_hex()
 figure_colors_qualitative = sns.color_palette("colorblind", 6).as_hex()
@@ -196,6 +202,13 @@ def correlation_bar(df, feature, title, kind="pearson"):
     heatmap.set_title(title)
 
 
+def print_validation_metrics(Y_test, Y_pred):
+    RMSE = np.sqrt(mean_squared_error(Y_test, Y_pred))
+    r2 = r2_score(Y_test, Y_pred)
+    print(f"RMSE: {RMSE:1.3f}")
+    print(f"r2: {r2:1.3f}")
+
+
 def transform_X(df, scaler):
     # scale df's numerical features
     numerical = df.select_dtypes(include=[np.number])
@@ -278,7 +291,7 @@ def plot_roc_curve(tpr, fpr, scatter=True, ax=None):
         fpr: The list of FPRs representing each coordinate.
         scatter: When True, the points used on the calculation will be plotted with the line (default = True).
     """
-    if ax == None:
+    if ax is None:
         plt.figure(figsize=(5, 5))
         ax = plt.axes()
 
