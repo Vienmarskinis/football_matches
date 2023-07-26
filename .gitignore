@@ -2,3 +2,4 @@ database.sqlite
 database_bkp.sqlite
 venv
 __py*
+looker_data*

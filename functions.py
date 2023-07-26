@@ -109,6 +109,7 @@ def joint_scatterplot_with_title(title, *args, **kwargs):
 
 
 def extract_scorers(row):
+    """Extracts the home scorers and away scorers from a pandas DataFrame row"""
     goal = row["goal"]
     away_scorers = []
     home_scorers = []
@@ -134,6 +135,9 @@ def extract_scorers(row):
 
 
 def get_player_goal_counts(dataframe):
+    """Extracts total goals by player from pandas DataFrame and records the team the player plays in.
+    If team is not consistent, '-1' replaces the team.
+    """
     # Create a defaultdict with a default value of 0
     player_goal_counts = defaultdict(int)
     player_teams = dict()
@@ -149,13 +153,14 @@ def get_player_goal_counts(dataframe):
         if player_ids_home is not None:
             # Split the player IDs string into a list
             player_ids_list = player_ids_home.split(",")
-
             # Iterate over each player ID in the list
             for player_id_str in player_ids_list:
                 player_id = int(player_id_str)
                 player_goal_counts[player_id] += 1
+                # record goals scorer's team
                 if player_teams.get(player_id) is None:
                     player_teams[player_id] = team_home
+                # if player changes team, insert '-1' for the team.
                 elif player_teams[player_id] == -1:
                     continue
                 elif player_teams[player_id] != team_home:
@@ -163,12 +168,16 @@ def get_player_goal_counts(dataframe):
 
         # Handle away scorers
         if player_ids_away is not None:
+            # Split the player IDs string into a list
             player_ids_list = player_ids_away.split(",")
+            # Iterate over each player ID in the list
             for player_id_str in player_ids_list:
                 player_id = int(player_id_str)
                 player_goal_counts[player_id] += 1
+                # record goals scorer's team
                 if player_teams.get(player_id) is None:
                     player_teams[player_id] = team_away
+                # if player changes team, insert '-1' for the team.
                 elif player_teams[player_id] == -1:
                     continue
                 elif player_teams[player_id] != team_away:
@@ -203,6 +212,15 @@ def correlation_bar(df, feature, title, kind="pearson"):
 
 
 def print_validation_metrics(Y_test, Y_pred):
+    """Calculate RMSE, R-squared and print them.
+
+    Parameters
+    ----------
+    Y_test : pd.Series
+        Column vector for expected outcome.
+    Y_pred : pd.Series
+        Column vector for predicted outcome.
+    """
     RMSE = np.sqrt(mean_squared_error(Y_test, Y_pred))
     r2 = r2_score(Y_test, Y_pred)
     print(f"RMSE: {RMSE:1.3f}")
@@ -210,6 +228,15 @@ def print_validation_metrics(Y_test, Y_pred):
 
 
 def transform_X(df, scaler):
+    """Scales numerical predictors, encodes in one-hot the categorical features.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The predictors' dataframe.
+    scaler : scaler object from sklearn
+        Selected pre-fit scaler, for example StandardScaler.
+    """
     # scale df's numerical features
     numerical = df.select_dtypes(include=[np.number])
     numerical_scaled = scaler.transform(numerical)
@@ -228,7 +255,22 @@ def transform_X(df, scaler):
     return df_transformed
 
 
-def paint_roc_figure(model, Y_test, X_test, pos_label, pos_position):
+def paint_roc_figure(model, Y_test, X_test, pos_label=True, pos_position=1):
+    """Creates custom ROC figure. Meant to be used with binomial logistic regression sklearn model.
+
+    Parameters
+    ----------
+    model :
+        pre-fit logistic regression sklearn model.
+    Y_test : pd.Series
+        Column vector for expected outcome.
+    X_test : pd.DataFrame
+        predictors' dataframe.
+    pos_label : Any
+        positive prediction label
+    pos_position: int
+        position of the positive class in the model, usually 1.
+    """
     fpr, tpr, thresholds = roc_curve(
         Y_test, model.predict_proba(X_test)[:, pos_position], pos_label=pos_label
     )
@@ -241,8 +283,8 @@ def paint_roc_figure(model, Y_test, X_test, pos_label, pos_position):
         legend=False,
         color=figure_colors_qualitative[0],
     )
-    ax.set_ylim(0, 1)
-    ax.set_xlim(1, 0)
+    ax.set_ylim(-0.05, 1.05)
+    ax.set_xlim(1.05, -0.05)
     ax.plot((1, 0), (0, 1), color=figure_colors_qualitative[1])
     ax.set_xlabel("specificity")
     ax.set_ylabel("recall")
@@ -260,6 +302,21 @@ def paint_roc_figure(model, Y_test, X_test, pos_label, pos_position):
 
 
 def paint_prc_figure(model, Y_test, X_test, pos_label, pos_position):
+    """Creates custom PRC figure. Meant to be used with binomial logistic regression sklearn model.
+
+    Parameters
+    ----------
+    model :
+        pre-fit logistic regression sklearn model.
+    Y_test : pd.Series
+        Column vector for expected outcome.
+    X_test : pd.DataFrame
+        predictors' dataframe.
+    pos_label : Any
+        positive prediction label
+    pos_position: int
+        position of the positive class in the model, usually 1.
+    """
     precision, recall, thresholds = precision_recall_curve(
         Y_test, model.predict_proba(X_test)[:, pos_position], pos_label=pos_label
     )
@@ -272,8 +329,8 @@ def paint_prc_figure(model, Y_test, X_test, pos_label, pos_position):
         legend=False,
         color=figure_colors_qualitative[0],
     )
-    ax.set_ylim(0, 1)
-    ax.set_xlim(0, 1)
+    ax.set_ylim(-0.05, 1.05)
+    ax.set_xlim(-0.05, 1.05)
     ax.set_ylabel("precision")
     ax.set_xlabel("recall")
     plt.title("Model PRC")
