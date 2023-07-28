@@ -1,9 +1,3 @@
-<style>
-OL { counter-reset: item }
-LI { display: block }
-LI:before { content: counters(item, ".") " "; counter-increment: item }
-</style>
-
 # Module 2: Data Analysis
 
 ## Ultimate 25k+ Matches Football Database
