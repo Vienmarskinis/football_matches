@@ -48,9 +48,12 @@ The dataset for this Sprint is the Ultimate 25k+ Matches Football Database. The 
 ## Conclusions
 
 We performed EDA using DuckDB to query the database, pandas to store and manipulate the data, seaborn and matplotlib - to visualise the data.
+
 For statistical inference we utilised statsmodels and scipy. After hypothesis testing we are fairly certain that there is such a thing as home advantage.
-We created some linear machine learning models to predict goals scored and the outcome of a football match. The best model for goals scored is just a bit better than random guessing, while the best model for match outcome prediction achieved 0.49 accuracy, with AUC 0.66 for home and away wins prediction. Ties are much harder to predict.
-After trying to use the models for betting game it is quite clear that betting on football matches is going to be risky. We didn't manage to get a positive income however hard we tried. Judging from these results, betting on football is not a good business model.
+
+We created some linear machine learning models (linear regression, logistic regression) to predict goals scored and the outcome of a football match. The best model for goals scored is just a bit better than random guessing, while the best model for match outcome prediction achieved 0.49 accuracy, with AUC 0.66 for home and away wins prediction. Ties are much harder to predict.
+
+After trying to use the models for the betting game it is quite clear that betting on football matches is going to be risky. We didn't manage to get a positive income however hard we tried. Judging from these results, betting on football is not a good business model.
 
 There are some things left to do and explore:
 <ol>
