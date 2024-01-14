@@ -1,10 +1,6 @@
-# Module 2: Data Analysis
-
 ## Ultimate 25k+ Matches Football Database
 
 ### Author: Tomas Balsevičius
-
-Requirements of the project are in 241.ipynb.
 
 To run the code, you will need to download the [data from Kaggle](https://www.kaggle.com/prajitdatta/ultimate-25k-matches-football-database-european)
 
@@ -22,7 +18,7 @@ pip install -r requirements.txt
 
 ## Introduction
 
-The dataset for this Sprint is the Ultimate 25k+ Matches Football Database. The main goal imposed by Turing College - explore the possibility to bet on Football matches. It is going to be a challenge to work with this large dataset, but our aim will be to find out what could make our bet successful. This project will consist of 3 major parts:
+The dataset for this Sprint is the Ultimate 25k+ Matches Football Database. The main goal imposed for this task - explore the possibility to bet on Football matches. It is going to be a challenge to work with this large dataset, but our aim will be to find out what could make our bet successful. This project will consist of 3 major parts:
 
 <ol>
     <li> EDA
