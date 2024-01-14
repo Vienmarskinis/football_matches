@@ -16,7 +16,7 @@ figure_colors = sns.color_palette("BrBG").as_hex()
 figure_colors_qualitative = sns.color_palette("colorblind", 6).as_hex()
 
 
-def add_value_labels(ax, spacing=1, units="") -> None:
+def add_value_labels(ax, spacing: int = 1, units: str = "") -> None:
     """Add labels to the end of each bar in a bar chart.
 
     Taken from:
@@ -95,7 +95,7 @@ def percent_plot(data: pd.DataFrame, x: str, hue: str, title: str, **kwargs) -> 
     sns.despine(bottom=True)
 
 
-def joint_scatterplot_with_title(title, *args, **kwargs):
+def joint_scatterplot_with_title(title: str, *args, **kwargs) -> None:
     """Creates a jointplot with proper title. See sns.jointplot for available arguments.
 
     Parameters
@@ -108,7 +108,7 @@ def joint_scatterplot_with_title(title, *args, **kwargs):
     plt.suptitle(title)
 
 
-def extract_scorers(row):
+def extract_scorers(row: pd.Series) -> pd.Series:
     """Extracts the home scorers and away scorers from a pandas DataFrame row"""
     goal = row["goal"]
     away_scorers = []
@@ -134,7 +134,7 @@ def extract_scorers(row):
     ).replace("", None)
 
 
-def get_player_goal_counts(dataframe):
+def get_player_goal_counts(dataframe: pd.DataFrame) -> (defaultdict, dict):
     """Extracts total goals by player from pandas DataFrame and records the team the player plays in.
     If team is not consistent, '-1' replaces the team.
     """
@@ -186,7 +186,9 @@ def get_player_goal_counts(dataframe):
     return player_goal_counts, player_teams
 
 
-def correlation_bar(df, feature, title, kind="pearson"):
+def correlation_bar(
+    df: pd.DataFrame, feature: str, title: str, kind: str = "pearson"
+) -> None:
     """Creates a correlation bar for the specified feature.
 
     Parameters
@@ -211,7 +213,7 @@ def correlation_bar(df, feature, title, kind="pearson"):
     heatmap.set_title(title)
 
 
-def print_validation_metrics(Y_test, Y_pred):
+def print_validation_metrics(Y_test: pd.Series, Y_pred: pd.Series) -> None:
     """Calculate RMSE, R-squared and print them.
 
     Parameters
@@ -227,7 +229,7 @@ def print_validation_metrics(Y_test, Y_pred):
     print(f"r2: {r2:1.3f}")
 
 
-def transform_X(df, scaler):
+def transform_X(df: pd.DataFrame, scaler) -> pd.DataFrame:
     """Scales numerical predictors, encodes in one-hot the categorical features.
 
     Parameters
@@ -255,7 +257,13 @@ def transform_X(df, scaler):
     return df_transformed
 
 
-def paint_roc_figure(model, Y_test, X_test, pos_label=True, pos_position=1):
+def paint_roc_figure(
+    model,
+    Y_test: pd.Series,
+    X_test: pd.DataFrame,
+    pos_label=True,
+    pos_position: int = 1,
+) -> None:
     """Creates custom ROC figure. Meant to be used with binomial logistic regression sklearn model.
 
     Parameters
@@ -301,7 +309,13 @@ def paint_roc_figure(model, Y_test, X_test, pos_label=True, pos_position=1):
     sns.despine()
 
 
-def paint_prc_figure(model, Y_test, X_test, pos_label, pos_position):
+def paint_prc_figure(
+    model,
+    Y_test: pd.Series,
+    X_test: pd.DataFrame,
+    pos_label=True,
+    pos_position: int = 1,
+) -> None:
     """Creates custom PRC figure. Meant to be used with binomial logistic regression sklearn model.
 
     Parameters
@@ -337,7 +351,7 @@ def paint_prc_figure(model, Y_test, X_test, pos_label, pos_position):
     sns.despine()
 
 
-def plot_roc_curve(tpr, fpr, scatter=True, ax=None):
+def plot_roc_curve(tpr: list, fpr: list, scatter: bool = True, ax=None) -> None:
     """
     Taken from
     https://towardsdatascience.com/multiclass-classification-evaluation-with-roc-curves-and-roc-auc-294fd4617e3a
@@ -347,6 +361,8 @@ def plot_roc_curve(tpr, fpr, scatter=True, ax=None):
         tpr: The list of TPRs representing each coordinate.
         fpr: The list of FPRs representing each coordinate.
         scatter: When True, the points used on the calculation will be plotted with the line (default = True).
+        ax : matplotlib.axes.Axes
+        The matplotlib object containing the axes of the plot to annotate.
     """
     if ax is None:
         plt.figure(figsize=(5, 5))
@@ -362,7 +378,7 @@ def plot_roc_curve(tpr, fpr, scatter=True, ax=None):
     plt.ylabel("True Positive Rate")
 
 
-def plot_multiclass_roc(model, X_test, Y_test):
+def plot_multiclass_roc(model, X_test: pd.DataFrame, Y_test: pd.DataFrame) -> None:
     """
     heavily based on
     https://towardsdatascience.com/multiclass-classification-evaluation-with-roc-curves-and-roc-auc-294fd4617e3a
