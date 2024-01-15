@@ -41,6 +41,17 @@ The dataset for this Sprint is the Ultimate 25k+ Matches Football Database. The 
     </ol>
 </ol>
 
+## Technologies
+<ul>
+    <li>Python 3.11.1</li>
+    <li>DuckDB (SQL interface)</li>
+    <li>Pandas (dataframes),</li>
+    <li>Seaborn and Matplotlib (visualisation),</li>
+    <li>SciPY (statistical inference,)</li>
+    <li>Statsmodels (explanatory modelling)</li>
+    <li>Sklearn (modelling),</li>
+</ul>
+
 ## Conclusions
 
 We performed EDA using DuckDB to query the database, pandas to store and manipulate the data, seaborn and matplotlib - to visualise the data.
